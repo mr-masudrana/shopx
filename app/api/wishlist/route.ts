@@ -43,6 +43,9 @@ export async function POST(request: Request) {
 
   const { product } = parsed.data;
 
+  // Convert the product into a Prisma-compatible JSON object.
+  const productJson = JSON.parse(JSON.stringify(product));
+
   const item = await prisma.wishlistItem.upsert({
     where: {
       userId_productId: { userId: user.id, productId: product.id },
@@ -51,7 +54,7 @@ export async function POST(request: Request) {
     create: {
       userId: user.id,
       productId: product.id,
-      product,
+      product: productJson,
     },
   });
 
