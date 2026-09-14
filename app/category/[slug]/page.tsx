@@ -1,29 +1,42 @@
 "use client";
 
-import { useMemo } from "react";
+import { use, useMemo } from "react";
 import Link from "next/link";
-import { ArrowLeft, PackageSearch } from "lucide-react";
+import {
+  ArrowLeft,
+  PackageSearch,
+} from "lucide-react";
 
 import { useProducts } from "@/hooks/useProducts";
 import ProductCard from "@/components/products/ProductCard";
 import ProductSkeleton from "@/components/products/ProductSkeleton";
 
+interface CategoryPageProps {
+  params: Promise<{
+    slug: string;
+  }>;
+}
+
 export default function CategoryPage({
   params,
-}: {
-  params: {
-    slug: string;
-  };
-}) {
-  const { products, loading, error } = useProducts();
+}: CategoryPageProps) {
+  const { slug } = use(params);
 
-  const categorySlug = decodeURIComponent(params.slug);
+  const categorySlug = decodeURIComponent(slug);
+
+  const { products, loading, error } = useProducts();
 
   const categoryProducts = useMemo(() => {
     return products.filter(
       (product) => product.category === categorySlug
     );
   }, [products, categorySlug]);
+
+  const categoryTitle = categorySlug
+    .replaceAll("-", " ")
+    .replace(/\b\w/g, (letter) =>
+      letter.toUpperCase()
+    );
 
   return (
     <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
@@ -40,8 +53,8 @@ export default function CategoryPage({
           Category
         </p>
 
-        <h1 className="mt-2 text-3xl font-bold capitalize">
-          {categorySlug.replaceAll("-", " ")}
+        <h1 className="mt-2 text-3xl font-bold">
+          {categoryTitle}
         </h1>
 
         <p className="mt-2 text-zinc-500">
@@ -57,12 +70,14 @@ export default function CategoryPage({
 
       {loading ? (
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {Array.from({ length: 8 }).map((_, index) => (
-            <ProductSkeleton key={index} />
-          ))}
+          {Array.from({ length: 8 }).map(
+            (_, index) => (
+              <ProductSkeleton key={index} />
+            )
+          )}
         </div>
       ) : categoryProducts.length === 0 ? (
-        <div className="rounded-2xl border bg-white px-5 py-16 text-center dark:border-zinc-800 dark:bg-zinc-950">
+        <div className="rounded-2xl border border-zinc-200 bg-white px-5 py-16 text-center dark:border-zinc-800 dark:bg-zinc-950">
           <PackageSearch
             size={48}
             className="mx-auto text-zinc-300"

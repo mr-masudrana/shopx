@@ -1,4 +1,7 @@
-import type { Product, ProductsResponse } from "@/types/product";
+import type {
+  Product,
+  ProductsResponse,
+} from "@/types/product";
 
 const API_BASE_URL = "https://dummyjson.com";
 
@@ -16,7 +19,7 @@ export async function getProducts(): Promise<Product[]> {
     throw new Error("Failed to fetch products");
   }
 
-  const data = await response.json();
+  const data: ProductsResponse = await response.json();
 
   return data.products;
 }
@@ -54,28 +57,32 @@ export async function getCategories(): Promise<string[]> {
     throw new Error("Failed to fetch categories");
   }
 
-  return response.json();
-}
+  const data = await response.json();
 
-export async function getCategories(): Promise<string[]> {
-  const response = await fetch(`${API_BASE_URL}/products/category-list`, {
-    cache: "no-store",
-  });
-
-  if (!response.ok) {
-    throw new Error("Failed to fetch categories");
+  // পুরোনো API string array ফেরত দিতে পারে
+  if (Array.isArray(data) && typeof data[0] === "string") {
+    return data;
   }
 
-  return response.json();
+  // নতুন API object array ফেরত দিলে
+  if (Array.isArray(data)) {
+    return data.map((item) => item.slug);
+  }
+
+  return [];
 }
 
 export async function getProductsByCategory(
   category: string
 ): Promise<ProductsResponse> {
   const response = await fetch(
-    `${API_BASE_URL}/products/category/${encodeURIComponent(category)}`,
+    `${API_BASE_URL}/products/category/${encodeURIComponent(
+      category
+    )}?limit=100`,
     {
-      cache: "no-store",
+      next: {
+        revalidate: 3600,
+      },
     }
   );
 

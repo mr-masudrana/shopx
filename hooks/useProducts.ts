@@ -4,8 +4,18 @@ import { useEffect, useState } from "react";
 
 import type { Product } from "@/types/product";
 
+interface ProductsApiResponse {
+  products: Product[];
+  total: number;
+  skip: number;
+  limit: number;
+}
+
 export function useProducts() {
-  const [products, setProducts] = useState<Product[]>([]);
+  const [products, setProducts] = useState<Product[]>(
+    []
+  );
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -15,6 +25,7 @@ export function useProducts() {
     async function loadProducts() {
       try {
         setLoading(true);
+        setError("");
 
         const response = await fetch(
           "https://dummyjson.com/products?limit=100"
@@ -24,19 +35,28 @@ export function useProducts() {
           throw new Error("Failed to fetch products");
         }
 
-        const data = await response.json();
+        const data: ProductsApiResponse =
+          await response.json();
 
-        if (mounted) {
-          setProducts(data.products);
+        if (!mounted) {
+          return;
         }
+
+        setProducts(
+          Array.isArray(data.products)
+            ? data.products
+            : []
+        );
       } catch (loadError) {
-        if (mounted) {
-          setError(
-            loadError instanceof Error
-              ? loadError.message
-              : "Unable to load products."
-          );
+        if (!mounted) {
+          return;
         }
+
+        setError(
+          loadError instanceof Error
+            ? loadError.message
+            : "Unable to load products."
+        );
       } finally {
         if (mounted) {
           setLoading(false);
