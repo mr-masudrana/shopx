@@ -21,18 +21,18 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" data-scroll-behavior="smooth">
       <body>
         <CartProvider>
           <OrderProvider>
             <AuthProvider>
               <WishlistProvider>
                 <Header />
-        
+
                 <main className="min-h-screen pb-20 md:pb-0">
                   {children}
                 </main>
-        
+
                 <MobileBottomNav />
               </WishlistProvider>
             </AuthProvider>

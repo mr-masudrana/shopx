@@ -16,6 +16,7 @@ import { useOrder } from "@/context/OrderContext";
 import { useAuth } from "@/context/AuthContext";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import OrderStatus from "@/components/orders/OrderStatus";
 
 export default function AccountPage() {
   const router = useRouter();
