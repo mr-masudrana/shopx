@@ -1,6 +1,7 @@
 "use client";
 
 import { Heart } from "lucide-react";
+import { toast } from "sonner";
 
 import { useWishlist } from "@/context/WishlistContext";
 import type { Product } from "@/types/product";
@@ -23,6 +24,12 @@ export default function WishlistButton({
         event.preventDefault();
         event.stopPropagation();
         toggleWishlist(product);
+
+        if (active) {
+          toast(`Removed from wishlist`, { description: product.title });
+        } else {
+          toast.success(`Added to wishlist`, { description: product.title });
+        }
       }}
       aria-label={
         active

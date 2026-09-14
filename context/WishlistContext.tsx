@@ -10,6 +10,7 @@ import {
 
 import type { Product } from "@/types/product";
 import type { WishlistItem } from "@/types/wishlist";
+import { useAuth } from "@/context/AuthContext";
 
 interface WishlistContextType {
   wishlistItems: WishlistItem[];
@@ -21,36 +22,68 @@ interface WishlistContextType {
   clearWishlist: () => void;
 }
 
-const WishlistContext = createContext<
-  WishlistContextType | undefined
->(undefined);
+const WishlistContext = createContext<WishlistContextType | undefined>(
+  undefined
+);
 
-const STORAGE_KEY = "shopx-wishlist";
+// Guest (logged-out) wishlist still lives in localStorage so visitors can
+// use it before creating an account. Once logged in, the account's
+// wishlist (from the database) takes over.
+const GUEST_STORAGE_KEY = "shopx-wishlist";
 
-export function WishlistProvider({
-  children,
-}: {
-  children: ReactNode;
-}) {
-  const [wishlistItems, setWishlistItems] = useState<
-    WishlistItem[]
-  >([]);
+export function WishlistProvider({ children }: { children: ReactNode }) {
+  const { isAuthenticated } = useAuth();
+  const [wishlistItems, setWishlistItems] = useState<WishlistItem[]>([]);
 
+  // Load guest wishlist from localStorage.
   useEffect(() => {
-    try {
-      const savedWishlist = localStorage.getItem(STORAGE_KEY);
+    if (isAuthenticated) return;
 
-      if (savedWishlist) {
-        setWishlistItems(JSON.parse(savedWishlist));
+    try {
+      const saved = localStorage.getItem(GUEST_STORAGE_KEY);
+
+      if (saved) {
+        setWishlistItems(JSON.parse(saved));
       }
     } catch (error) {
       console.error("Failed to load wishlist:", error);
     }
-  }, []);
+  }, [isAuthenticated]);
 
-  const saveWishlist = (items: WishlistItem[]) => {
+  // Load account wishlist from the API once logged in.
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    let mounted = true;
+
+    (async () => {
+      try {
+        const response = await fetch("/api/wishlist");
+        const data = await response.json().catch(() => null);
+
+        if (mounted && response.ok) {
+          const items: WishlistItem[] = (data?.items ?? []).map(
+            (entry: { product: Product; addedAt: string }) => ({
+              ...entry.product,
+              addedAt: entry.addedAt,
+            })
+          );
+
+          setWishlistItems(items);
+        }
+      } catch (error) {
+        console.error("Failed to load wishlist:", error);
+      }
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, [isAuthenticated]);
+
+  const saveGuestWishlist = (items: WishlistItem[]) => {
     setWishlistItems(items);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+    localStorage.setItem(GUEST_STORAGE_KEY, JSON.stringify(items));
   };
 
   const isInWishlist = (productId: number) => {
@@ -65,7 +98,17 @@ export function WishlistProvider({
       addedAt: new Date().toISOString(),
     };
 
-    saveWishlist([...wishlistItems, wishlistItem]);
+    setWishlistItems((current) => [...current, wishlistItem]);
+
+    if (isAuthenticated) {
+      fetch("/api/wishlist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ product }),
+      }).catch((error) => console.error("Failed to add to wishlist:", error));
+    } else {
+      saveGuestWishlist([...wishlistItems, wishlistItem]);
+    }
   };
 
   const removeFromWishlist = (productId: number) => {
@@ -73,7 +116,19 @@ export function WishlistProvider({
       (item) => item.id !== productId
     );
 
-    saveWishlist(updatedItems);
+    setWishlistItems(updatedItems);
+
+    if (isAuthenticated) {
+      fetch("/api/wishlist", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ productId }),
+      }).catch((error) =>
+        console.error("Failed to remove from wishlist:", error)
+      );
+    } else {
+      saveGuestWishlist(updatedItems);
+    }
   };
 
   const toggleWishlist = (product: Product) => {
@@ -85,7 +140,11 @@ export function WishlistProvider({
   };
 
   const clearWishlist = () => {
-    saveWishlist([]);
+    setWishlistItems([]);
+
+    if (!isAuthenticated) {
+      localStorage.removeItem(GUEST_STORAGE_KEY);
+    }
   };
 
   return (
@@ -109,9 +168,7 @@ export function useWishlist() {
   const context = useContext(WishlistContext);
 
   if (!context) {
-    throw new Error(
-      "useWishlist must be used inside WishlistProvider"
-    );
+    throw new Error("useWishlist must be used inside WishlistProvider");
   }
 
   return context;

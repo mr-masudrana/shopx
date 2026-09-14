@@ -8,13 +8,9 @@ import {
   type ReactNode,
 } from "react";
 
-import type {
-  Order,
-  ShippingInfo,
-  PaymentMethod,
-} from "@/types/order";
-
+import type { Order, ShippingInfo, PaymentMethod } from "@/types/order";
 import type { CartItem } from "@/types/cart";
+import { useAuth } from "@/context/AuthContext";
 
 interface CreateOrderData {
   items: CartItem[];
@@ -28,89 +24,104 @@ interface CreateOrderData {
 
 interface OrderContextType {
   orders: Order[];
-  createOrder: (data: CreateOrderData) => Order;
+  isLoading: boolean;
+  createOrder: (data: CreateOrderData) => Promise<Order>;
   getOrderById: (id: string) => Order | undefined;
-  cancelOrder: (id: string) => void;
+  cancelOrder: (id: string) => Promise<void>;
+  refreshOrders: () => Promise<void>;
 }
 
-const OrderContext = createContext<OrderContextType | undefined>(
-  undefined
-);
+const OrderContext = createContext<OrderContextType | undefined>(undefined);
 
-export function OrderProvider({
-  children,
-}: {
-  children: ReactNode;
-}) {
+async function parseJsonSafe(response: Response) {
+  try {
+    return await response.json();
+  } catch {
+    return null;
+  }
+}
+
+export function OrderProvider({ children }: { children: ReactNode }) {
+  const { isAuthenticated } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
-  const [isHydrated, setIsHydrated] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  useEffect(() => {
+  const refreshOrders = async () => {
+    if (!isAuthenticated) {
+      setOrders([]);
+      return;
+    }
+
+    setIsLoading(true);
+
     try {
-      const savedOrders = localStorage.getItem("shopx-orders");
+      const response = await fetch("/api/orders");
+      const data = await parseJsonSafe(response);
 
-      if (savedOrders) {
-        setOrders(JSON.parse(savedOrders));
+      if (response.ok) {
+        setOrders(data?.orders ?? []);
       }
     } catch (error) {
       console.error("Failed to load orders:", error);
     } finally {
-      setIsHydrated(true);
+      setIsLoading(false);
     }
-  }, []);
-
-  const saveOrders = (updatedOrders: Order[]) => {
-    setOrders(updatedOrders);
-    localStorage.setItem(
-      "shopx-orders",
-      JSON.stringify(updatedOrders)
-    );
   };
 
-  const createOrder = (data: CreateOrderData): Order => {
-    const order: Order = {
-      id: `SHX-${Date.now().toString(36).toUpperCase()}-${Math.random()
-        .toString(36)
-        .slice(2, 7)
-        .toUpperCase()}`,
-      ...data,
-      status: "placed",
-      createdAt: new Date().toISOString(),
-    };
+  useEffect(() => {
+    refreshOrders();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated]);
 
-    const updatedOrders = [order, ...orders];
+  const createOrder = async (data: CreateOrderData): Promise<Order> => {
+    const response = await fetch("/api/orders", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
 
-    saveOrders(updatedOrders);
+    const result = await parseJsonSafe(response);
 
-    return order;
+    if (!response.ok) {
+      throw new Error(result?.error ?? "Failed to place order.");
+    }
+
+    setOrders((current) => [result.order, ...current]);
+
+    return result.order;
   };
 
   const getOrderById = (id: string) => {
     return orders.find((order) => order.id === id);
   };
 
-  const cancelOrder = (id: string) => {
-    const updatedOrders = orders.map((order) => {
-      if (order.id === id && order.status === "placed") {
-        return {
-          ...order,
-          status: "cancelled" as const,
-        };
-      }
-
-      return order;
+  const cancelOrder = async (id: string) => {
+    const response = await fetch(`/api/orders/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "cancel" }),
     });
 
-    saveOrders(updatedOrders);
+    const result = await parseJsonSafe(response);
+
+    if (!response.ok) {
+      throw new Error(result?.error ?? "Failed to cancel order.");
+    }
+
+    setOrders((current) =>
+      current.map((order) => (order.id === id ? result.order : order))
+    );
   };
 
   return (
     <OrderContext.Provider
       value={{
-        orders: isHydrated ? orders : [],
+        orders,
+        isLoading,
         createOrder,
         getOrderById,
         cancelOrder,
+        refreshOrders,
       }}
     >
       {children}

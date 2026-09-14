@@ -1,32 +1,45 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Save, User } from "lucide-react";
 
+import { useAuth } from "@/context/AuthContext";
+
 export default function AccountSettingsPage() {
-  const [name, setName] = useState("ShopX Customer");
-  const [email, setEmail] = useState("customer@example.com");
+  const { user, updateProfile } = useAuth();
+
+  const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
 
-  const handleSubmit = (event: React.FormEvent) => {
+  useEffect(() => {
+    if (user) {
+      setName(user.name);
+      setPhone(user.phone ?? "");
+    }
+  }, [user]);
+
+  const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
+    setError("");
+    setIsSaving(true);
 
-    localStorage.setItem(
-      "shopx-profile",
-      JSON.stringify({
-        name,
-        email,
-        phone,
-      })
-    );
-
-    setSaved(true);
-
-    setTimeout(() => {
-      setSaved(false);
-    }, 2500);
+    try {
+      await updateProfile({ name, phone });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    } catch (submitError) {
+      setError(
+        submitError instanceof Error
+          ? submitError.message
+          : "Failed to update profile."
+      );
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -76,9 +89,9 @@ export default function AccountSettingsPage() {
 
             <input
               type="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              className="w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 outline-none focus:border-blue-500 dark:border-zinc-700 dark:bg-zinc-900"
+              value={user?.email ?? ""}
+              disabled
+              className="w-full cursor-not-allowed rounded-xl border border-zinc-200 bg-zinc-100 px-4 py-3 text-zinc-500 outline-none dark:border-zinc-700 dark:bg-zinc-900"
             />
           </label>
 
@@ -95,6 +108,12 @@ export default function AccountSettingsPage() {
             />
           </label>
 
+          {error && (
+            <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700 dark:bg-red-950/30 dark:text-red-400">
+              {error}
+            </div>
+          )}
+
           {saved && (
             <div className="rounded-xl bg-green-50 px-4 py-3 text-sm text-green-700 dark:bg-green-950/30 dark:text-green-400">
               Profile updated successfully.
@@ -103,10 +122,11 @@ export default function AccountSettingsPage() {
 
           <button
             type="submit"
-            className="flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white hover:bg-blue-700"
+            disabled={isSaving}
+            className="flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
           >
             <Save size={18} />
-            Save Changes
+            {isSaving ? "Saving..." : "Save Changes"}
           </button>
         </form>
       </div>

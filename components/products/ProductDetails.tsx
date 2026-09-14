@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 import { motion } from "framer-motion";
+import { toast } from "sonner";
 import {
   ArrowLeft,
   Minus,
@@ -41,6 +42,10 @@ export default function ProductDetails({
   const handleAddToCart = () => {
     addToCart(product, quantity);
     setAdded(true);
+
+    toast.success(`${product.title} added to cart`, {
+      description: `Qty ${quantity} · $${(product.price * quantity).toFixed(2)}`,
+    });
 
     setTimeout(() => setAdded(false), 1800);
   };

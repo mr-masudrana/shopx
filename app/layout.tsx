@@ -1,4 +1,5 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
+import { Toaster } from "sonner";
 
 import "./globals.css";
 
@@ -15,6 +16,13 @@ export const metadata: Metadata = {
   description: "Modern e-commerce shopping experience",
 };
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#ffffff",
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -23,9 +31,9 @@ export default function RootLayout({
   return (
     <html lang="en" data-scroll-behavior="smooth">
       <body>
-        <CartProvider>
-          <OrderProvider>
-            <AuthProvider>
+        <AuthProvider>
+          <CartProvider>
+            <OrderProvider>
               <WishlistProvider>
                 <Header />
 
@@ -34,10 +42,19 @@ export default function RootLayout({
                 </main>
 
                 <MobileBottomNav />
+
+                <Toaster
+                  position="top-center"
+                  richColors
+                  closeButton
+                  toastOptions={{
+                    className: "!rounded-xl",
+                  }}
+                />
               </WishlistProvider>
-            </AuthProvider>
-          </OrderProvider>
-        </CartProvider>
+            </OrderProvider>
+          </CartProvider>
+        </AuthProvider>
       </body>
     </html>
   );

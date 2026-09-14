@@ -3,15 +3,19 @@
 import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
+import { toast } from "sonner";
 import { ShoppingCart, Star, ArrowUpRight } from "lucide-react";
 import type { Product } from "@/types/product";
 import WishlistButton from "@/components/wishlist/WishlistButton";
+import { useCart } from "@/context/CartContext";
 
 interface ProductCardProps {
   product: Product;
 }
 
 export default function ProductCard({ product }: ProductCardProps) {
+  const { addToCart } = useCart();
+
   const discount = Math.round(product.discountPercentage);
 
   const originalPrice = (
@@ -94,6 +98,14 @@ export default function ProductCard({ product }: ProductCardProps) {
           <motion.button
             type="button"
             whileTap={{ scale: 0.9 }}
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              addToCart(product, 1);
+              toast.success(`${product.title} added to cart`, {
+                description: `$${product.price.toFixed(2)}`,
+              });
+            }}
             className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-md shadow-indigo-200 transition-colors hover:bg-indigo-700"
             aria-label={`Add ${product.title} to cart`}
           >

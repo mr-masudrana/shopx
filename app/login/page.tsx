@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Eye, EyeOff, Lock, LogIn, Mail } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
+import { toast } from "sonner";
 
 import { useAuth } from "@/context/AuthContext";
 
@@ -53,6 +54,7 @@ function LoginContent() {
         password,
       });
 
+      toast.success("Welcome back!");
       router.replace(redirectTo);
     } catch (loginError) {
       setError(

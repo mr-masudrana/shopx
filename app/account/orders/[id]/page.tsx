@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
+import { toast } from "sonner";
 import {
   ArrowLeft,
   CheckCircle2,
@@ -59,15 +60,25 @@ export default function OrderDetailsPage() {
     );
   }
 
-  const handleCancelOrder = () => {
+  const handleCancelOrder = async () => {
     const confirmed = window.confirm(
       "Are you sure you want to cancel this order?"
     );
 
     if (!confirmed) return;
 
-    cancelOrder(order.id);
-    router.refresh();
+    try {
+      await cancelOrder(order.id);
+      toast.success("Order cancelled");
+      router.refresh();
+    } catch (cancelError) {
+      console.error(cancelError);
+      toast.error(
+        cancelError instanceof Error
+          ? cancelError.message
+          : "Failed to cancel order."
+      );
+    }
   };
 
   return (

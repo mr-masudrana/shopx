@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Minus, Plus, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import type { CartItem as CartItemType } from "@/types/cart";
 import { useCart } from "@/context/CartContext";
 
@@ -11,7 +12,7 @@ interface CartItemProps {
 }
 
 export default function CartItem({ item }: CartItemProps) {
-  const { updateQuantity, removeFromCart } = useCart();
+  const { updateQuantity, removeFromCart, addToCart } = useCart();
 
   const { product, quantity } = item;
 
@@ -78,7 +79,16 @@ export default function CartItem({ item }: CartItemProps) {
 
           <button
             type="button"
-            onClick={() => removeFromCart(product.id)}
+            onClick={() => {
+              removeFromCart(product.id);
+
+              toast(`Removed ${product.title}`, {
+                action: {
+                  label: "Undo",
+                  onClick: () => addToCart(product, quantity),
+                },
+              });
+            }}
             className="flex items-center gap-1.5 text-xs font-medium text-gray-400 transition hover:text-red-500"
           >
             <Trash2 size={15} />

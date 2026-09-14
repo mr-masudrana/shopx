@@ -4,7 +4,9 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, CheckCircle2, Lock, ShoppingBag } from "lucide-react";
+import { toast } from "sonner";
 
+import { useAuth } from "@/context/AuthContext";
 import { useCart } from "@/context/CartContext";
 import { useOrder } from "@/context/OrderContext";
 
@@ -16,6 +18,7 @@ import type {
 export default function CheckoutForm() {
   const router = useRouter();
 
+  const { isAuthenticated } = useAuth();
   const { cartItems, cartTotal, clearCart } = useCart();
   const { createOrder } = useOrder();
 
@@ -84,6 +87,11 @@ export default function CheckoutForm() {
   ) => {
     event.preventDefault();
 
+    if (!isAuthenticated) {
+      router.push("/login?redirect=/checkout");
+      return;
+    }
+
     const validationError = validateForm();
 
     if (validationError) {
@@ -95,7 +103,7 @@ export default function CheckoutForm() {
     setIsSubmitting(true);
 
     try {
-      const order = createOrder({
+      const order = await createOrder({
         items: cartItems,
         shipping,
         paymentMethod,
@@ -107,10 +115,20 @@ export default function CheckoutForm() {
 
       clearCart();
 
+      toast.success("Order placed!", {
+        description: `Order #${order.id} is on its way.`,
+      });
+
       router.replace(`/order-success?orderId=${order.id}`);
     } catch (submitError) {
       console.error(submitError);
-      setError("Something went wrong. Please try again.");
+      const message =
+        submitError instanceof Error
+          ? submitError.message
+          : "Something went wrong. Please try again.";
+
+      setError(message);
+      toast.error(message);
       setIsSubmitting(false);
     }
   };

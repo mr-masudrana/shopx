@@ -62,7 +62,7 @@ export default function MobileBottomNav() {
             <Link
               key={item.href}
               href={item.href}
-              className={`flex min-w-[56px] flex-col items-center gap-1 rounded-xl px-3 py-1.5 text-[11px] font-medium transition-all ${
+              className={`tap-scale flex min-w-[56px] flex-col items-center gap-1 rounded-xl px-3 py-1.5 text-[11px] font-medium transition-all ${
                 isActive
                   ? "text-indigo-600"
                   : "text-gray-500 hover:text-indigo-600"

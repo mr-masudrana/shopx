@@ -27,123 +27,102 @@ interface AuthContextType {
   isAuthenticated: boolean;
   register: (data: RegisterData) => Promise<void>;
   login: (data: LoginData) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
+  updateProfile: (data: { name?: string; phone?: string }) => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(
-  undefined
-);
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const USER_STORAGE_KEY = "shopx-user";
-const ACCOUNT_STORAGE_KEY = "shopx-account";
-
-interface StoredAccount {
-  user: User;
-  password: string;
+async function parseJsonSafe(response: Response) {
+  try {
+    return await response.json();
+  } catch {
+    return null;
+  }
 }
 
-export function AuthProvider({
-  children,
-}: {
-  children: ReactNode;
-}) {
+export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    try {
-      const savedUser = localStorage.getItem(USER_STORAGE_KEY);
+    let mounted = true;
 
-      if (savedUser) {
-        setUser(JSON.parse(savedUser));
+    async function loadSession() {
+      try {
+        const response = await fetch("/api/auth/me");
+        const data = await parseJsonSafe(response);
+
+        if (mounted) {
+          setUser(data?.user ?? null);
+        }
+      } catch (error) {
+        console.error("Failed to load user session:", error);
+      } finally {
+        if (mounted) {
+          setIsLoading(false);
+        }
       }
-    } catch (error) {
-      console.error("Failed to load user session:", error);
-    } finally {
-      setIsLoading(false);
     }
+
+    loadSession();
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
-  const register = async ({
-    name,
-    email,
-    password,
-  }: RegisterData) => {
-    const normalizedEmail = email.trim().toLowerCase();
+  const register = async ({ name, email, password }: RegisterData) => {
+    const response = await fetch("/api/auth/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, email, password }),
+    });
 
-    const existingAccount = localStorage.getItem(
-      ACCOUNT_STORAGE_KEY
-    );
+    const data = await parseJsonSafe(response);
 
-    if (existingAccount) {
-      const account: StoredAccount = JSON.parse(existingAccount);
-
-      if (account.user.email === normalizedEmail) {
-        throw new Error(
-          "An account with this email already exists."
-        );
-      }
+    if (!response.ok) {
+      throw new Error(data?.error ?? "Failed to register.");
     }
 
-    const newUser: User = {
-      id: `USR-${Date.now().toString(36).toUpperCase()}`,
-      name: name.trim(),
-      email: normalizedEmail,
-      createdAt: new Date().toISOString(),
-    };
-
-    const account: StoredAccount = {
-      user: newUser,
-      password,
-    };
-
-    localStorage.setItem(
-      ACCOUNT_STORAGE_KEY,
-      JSON.stringify(account)
-    );
-
-    localStorage.setItem(
-      USER_STORAGE_KEY,
-      JSON.stringify(newUser)
-    );
-
-    setUser(newUser);
+    setUser(data.user);
   };
 
-  const login = async ({
-    email,
-    password,
-  }: LoginData) => {
-    const savedAccount = localStorage.getItem(
-      ACCOUNT_STORAGE_KEY
-    );
+  const login = async ({ email, password }: LoginData) => {
+    const response = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
 
-    if (!savedAccount) {
-      throw new Error(
-        "No account found. Please create an account first."
-      );
+    const data = await parseJsonSafe(response);
+
+    if (!response.ok) {
+      throw new Error(data?.error ?? "Failed to log in.");
     }
 
-    const account: StoredAccount = JSON.parse(savedAccount);
-
-    if (
-      account.user.email !== email.trim().toLowerCase() ||
-      account.password !== password
-    ) {
-      throw new Error("Invalid email or password.");
-    }
-
-    localStorage.setItem(
-      USER_STORAGE_KEY,
-      JSON.stringify(account.user)
-    );
-
-    setUser(account.user);
+    setUser(data.user);
   };
 
-  const logout = () => {
-    localStorage.removeItem(USER_STORAGE_KEY);
+  const logout = async () => {
+    await fetch("/api/auth/logout", { method: "POST" });
     setUser(null);
+  };
+
+  const updateProfile = async (data: { name?: string; phone?: string }) => {
+    const response = await fetch("/api/auth/me", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+
+    const result = await parseJsonSafe(response);
+
+    if (!response.ok) {
+      throw new Error(result?.error ?? "Failed to update profile.");
+    }
+
+    setUser(result.user);
   };
 
   return (
@@ -155,6 +134,7 @@ export function AuthProvider({
         register,
         login,
         logout,
+        updateProfile,
       }}
     >
       {children}

@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { Eye, EyeOff, Lock, Mail, UserPlus } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { toast } from "sonner";
 
 import { useAuth } from "@/context/AuthContext";
 
@@ -71,6 +72,7 @@ function RegisterContent() {
         password,
       });
 
+      toast.success("Account created — welcome to ShopX!");
       router.replace(redirectTo);
     } catch (registerError) {
       setError(
