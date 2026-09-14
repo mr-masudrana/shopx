@@ -119,29 +119,26 @@ export default function OrderDetailsPage() {
             <div className="space-y-5">
               {order.items.map((item) => (
                 <div
-                  key={item.id}
+                  key={item.product.id}
                   className="flex gap-4 border-b pb-5 last:border-0 last:pb-0 dark:border-zinc-800"
                 >
                   <img
-                    src={item.thumbnail}
-                    alt={item.title}
+                    src={item.product.thumbnail}
+                    alt={item.product.title}
                     className="h-20 w-20 rounded-xl object-cover"
                   />
-
+            
                   <div className="min-w-0 flex-1">
                     <h3 className="line-clamp-2 font-semibold">
-                      {item.title}
+                      {item.product.title}
                     </h3>
-
+            
                     <p className="mt-1 text-sm text-zinc-500">
                       Quantity: {item.quantity}
                     </p>
-
+            
                     <p className="mt-2 font-bold text-blue-600">
-                      $
-                      {(item.price * item.quantity).toFixed(
-                        2
-                      )}
+                      ${(item.product.price * item.quantity).toFixed(2)}
                     </p>
                   </div>
                 </div>

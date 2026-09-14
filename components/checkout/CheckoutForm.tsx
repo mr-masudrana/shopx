@@ -279,26 +279,26 @@ export default function CheckoutForm() {
         <div className="space-y-4">
           {cartItems.map((item) => (
             <div
-              key={item.id}
+              key={item.product.id}
               className="flex gap-3 border-b pb-4 dark:border-zinc-800"
             >
               <img
-                src={item.thumbnail}
-                alt={item.title}
+                src={item.product.thumbnail}
+                alt={item.product.title}
                 className="h-16 w-16 rounded-lg object-cover"
               />
-
+        
               <div className="min-w-0 flex-1">
                 <p className="line-clamp-2 text-sm font-medium">
-                  {item.title}
+                  {item.product.title}
                 </p>
-
+        
                 <p className="mt-1 text-xs text-zinc-500">
                   Qty: {item.quantity}
                 </p>
-
+        
                 <p className="mt-1 text-sm font-semibold">
-                  ${(item.price * item.quantity).toFixed(2)}
+                  ${(item.product.price * item.quantity).toFixed(2)}
                 </p>
               </div>
             </div>
