@@ -16,9 +16,7 @@ export default function HomePage() {
   useEffect(() => {
     async function fetchProducts() {
       try {
-        const response = await fetch(
-          "https://dummyjson.com/products?limit=20"
-        );
+        const response = await fetch("/api/products?limit=20");
 
         if (!response.ok) {
           throw new Error("Failed to fetch products");

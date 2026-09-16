@@ -23,8 +23,8 @@ export default function ShopPage() {
       setError("");
 
       const [productsResponse, categoriesResponse] = await Promise.all([
-        fetch("https://dummyjson.com/products?limit=100"),
-        fetch("https://dummyjson.com/products/category-list"),
+        fetch("/api/products?limit=100"),
+        fetch("/api/products/categories"),
       ]);
 
       if (!productsResponse.ok || !categoriesResponse.ok) {

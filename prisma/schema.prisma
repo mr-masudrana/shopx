@@ -1,10 +1,12 @@
 generator client {
-  provider = "prisma-client-js"
+  provider   = "prisma-client-js"
+  engineType = "client"
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model User {
@@ -46,4 +48,31 @@ model WishlistItem {
 
   @@unique([userId, productId])
   @@index([userId])
+}
+
+model Product {
+  id                   Int      @id @default(autoincrement())
+  title                String
+  description          String
+  category             String
+  price                Float
+  discountPercentage   Float    @default(0)
+  rating               Float    @default(0)
+  stock                Int      @default(0)
+  tags                 String[] @default([])
+  brand                String?
+  sku                  String?
+  weight               Float?
+  dimensions           Json?
+  warrantyInformation  String?
+  shippingInformation  String?
+  availabilityStatus   String?  @default("In Stock")
+  returnPolicy         String?
+  minimumOrderQuantity Int?     @default(1)
+  images               String[]
+  thumbnail            String
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@index([category])
 }

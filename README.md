@@ -1,5 +1,36 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## Environment Setup
+
+This project needs a PostgreSQL database and a JWT signing secret before it will run.
+
+1. Copy the example env file and fill in real values:
+
+   ```bash
+   cp .env.example .env
+   ```
+
+   - `DATABASE_URL` — a PostgreSQL connection string (a local Postgres instance or a hosted provider like Neon/Supabase both work).
+   - `JWT_SECRET` — any long random string, e.g. generated with `openssl rand -base64 32`.
+
+2. Push the Prisma schema to your database:
+
+   ```bash
+   npx prisma migrate dev
+   ```
+
+   (`npm install` already runs `prisma generate` automatically via the `postinstall` script.)
+
+3. (Optional, recommended) Seed your database with a starter product catalog:
+
+   ```bash
+   npm run db:seed
+   ```
+
+   This pulls the dummyjson.com catalog once and saves it into your own database — after that, the app never talks to dummyjson again. Products live entirely in your PostgreSQL database and can be managed via `/account/products/new`.
+
+Without `DATABASE_URL`/`JWT_SECRET` set, API routes that use auth (`/api/auth/*`, `/api/orders`, `/api/wishlist`, `/api/products`) will fail to start.
+
 ## Getting Started
 
 First, run the development server:

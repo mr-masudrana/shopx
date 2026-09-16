@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import ProductDetails from "@/components/products/ProductDetails";
-import { getProductById } from "@/lib/api";
+import { getProductById } from "@/lib/products";
 
 interface ProductPageProps {
   params: Promise<{

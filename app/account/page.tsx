@@ -8,6 +8,7 @@ import {
   Mail,
   MapPin,
   Package,
+  PackagePlus,
   Settings,
   ShieldCheck,
   User,
@@ -103,6 +104,12 @@ export default function AccountPage() {
               href="/account/settings"
               icon={<Settings size={18} />}
               label="Settings"
+            />
+
+            <AccountNavItem
+              href="/account/products/new"
+              icon={<PackagePlus size={18} />}
+              label="Add Product"
             />
           </nav>
         </aside>

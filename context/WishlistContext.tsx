@@ -50,7 +50,8 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
     }
   }, [isAuthenticated]);
 
-  // Load account wishlist from the API once logged in.
+  // Load account wishlist from the API once logged in, merging in any
+  // items that were added as a guest before this login.
   useEffect(() => {
     if (!isAuthenticated) return;
 
@@ -58,18 +59,50 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
 
     (async () => {
       try {
+        let guestItems: WishlistItem[] = [];
+
+        try {
+          const saved = localStorage.getItem(GUEST_STORAGE_KEY);
+          guestItems = saved ? JSON.parse(saved) : [];
+        } catch (error) {
+          console.error("Failed to read guest wishlist:", error);
+        }
+
         const response = await fetch("/api/wishlist");
         const data = await response.json().catch(() => null);
 
-        if (mounted && response.ok) {
-          const items: WishlistItem[] = (data?.items ?? []).map(
-            (entry: { product: Product; addedAt: string }) => ({
-              ...entry.product,
-              addedAt: entry.addedAt,
-            })
-          );
+        if (!mounted || !response.ok) return;
 
-          setWishlistItems(items);
+        const accountItems: WishlistItem[] = (data?.items ?? []).map(
+          (entry: { product: Product; addedAt: string }) => ({
+            ...entry.product,
+            addedAt: entry.addedAt,
+          })
+        );
+
+        const accountIds = new Set(accountItems.map((item) => item.id));
+        const itemsToMerge = guestItems.filter(
+          (item) => !accountIds.has(item.id)
+        );
+
+        if (itemsToMerge.length > 0) {
+          await Promise.all(
+            itemsToMerge.map((item) =>
+              fetch("/api/wishlist", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ product: item }),
+              }).catch((error) =>
+                console.error("Failed to merge wishlist item:", error)
+              )
+            )
+          );
+        }
+
+        localStorage.removeItem(GUEST_STORAGE_KEY);
+
+        if (mounted) {
+          setWishlistItems([...accountItems, ...itemsToMerge]);
         }
       } catch (error) {
         console.error("Failed to load wishlist:", error);
@@ -82,7 +115,6 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
   }, [isAuthenticated]);
 
   const saveGuestWishlist = (items: WishlistItem[]) => {
-    setWishlistItems(items);
     localStorage.setItem(GUEST_STORAGE_KEY, JSON.stringify(items));
   };
 
@@ -98,7 +130,15 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
       addedAt: new Date().toISOString(),
     };
 
-    setWishlistItems((current) => [...current, wishlistItem]);
+    setWishlistItems((current) => {
+      const updated = [...current, wishlistItem];
+
+      if (!isAuthenticated) {
+        saveGuestWishlist(updated);
+      }
+
+      return updated;
+    });
 
     if (isAuthenticated) {
       fetch("/api/wishlist", {
@@ -106,17 +146,19 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ product }),
       }).catch((error) => console.error("Failed to add to wishlist:", error));
-    } else {
-      saveGuestWishlist([...wishlistItems, wishlistItem]);
     }
   };
 
   const removeFromWishlist = (productId: number) => {
-    const updatedItems = wishlistItems.filter(
-      (item) => item.id !== productId
-    );
+    setWishlistItems((current) => {
+      const updated = current.filter((item) => item.id !== productId);
 
-    setWishlistItems(updatedItems);
+      if (!isAuthenticated) {
+        saveGuestWishlist(updated);
+      }
+
+      return updated;
+    });
 
     if (isAuthenticated) {
       fetch("/api/wishlist", {
@@ -126,8 +168,6 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
       }).catch((error) =>
         console.error("Failed to remove from wishlist:", error)
       );
-    } else {
-      saveGuestWishlist(updatedItems);
     }
   };
 
@@ -140,11 +180,11 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
   };
 
   const clearWishlist = () => {
-    setWishlistItems([]);
-
     if (!isAuthenticated) {
       localStorage.removeItem(GUEST_STORAGE_KEY);
     }
+
+    setWishlistItems([]);
   };
 
   return (
