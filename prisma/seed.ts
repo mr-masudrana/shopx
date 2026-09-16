@@ -105,7 +105,7 @@ async function main() {
         brand: item.brand ?? null,
         sku: item.sku ?? null,
         weight: item.weight ?? null,
-        dimensions: item.dimensions ?? null,
+        dimensions: item.dimensions ?? undefined,
         warrantyInformation: item.warrantyInformation ?? null,
         shippingInformation: item.shippingInformation ?? null,
         availabilityStatus:
