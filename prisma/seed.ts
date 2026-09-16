@@ -1,21 +1,8 @@
 import "dotenv/config";
 
 import { PrismaClient } from "@prisma/client";
-import { PrismaPg } from "@prisma/adapter-pg";
 
-const connectionString = process.env.DATABASE_URL;
-
-if (!connectionString) {
-  throw new Error("DATABASE_URL is not set");
-}
-
-const adapter = new PrismaPg({
-  connectionString,
-});
-
-const prisma = new PrismaClient({
-  adapter,
-});
+const prisma = new PrismaClient();
 
 interface DummyProduct {
   id: number;
@@ -105,7 +92,10 @@ async function main() {
         brand: item.brand ?? null,
         sku: item.sku ?? null,
         weight: item.weight ?? null,
+
+        // Optional JSON field: use undefined instead of null
         dimensions: item.dimensions ?? undefined,
+
         warrantyInformation: item.warrantyInformation ?? null,
         shippingInformation: item.shippingInformation ?? null,
         availabilityStatus:
