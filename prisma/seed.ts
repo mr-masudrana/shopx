@@ -1,11 +1,21 @@
-// One-time seed: pulls the existing dummyjson.com catalog into your own
-// database so you're not starting from an empty shop. After this runs,
-// the app never talks to dummyjson again — everything comes from your DB.
-// Run manually any time with: npm run db:seed
+import "dotenv/config";
 
 import { PrismaClient } from "@prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
 
-const prisma = new PrismaClient();
+const connectionString = process.env.DATABASE_URL;
+
+if (!connectionString) {
+  throw new Error("DATABASE_URL is not set");
+}
+
+const adapter = new PrismaPg({
+  connectionString,
+});
+
+const prisma = new PrismaClient({
+  adapter,
+});
 
 interface DummyProduct {
   id: number;
@@ -13,14 +23,18 @@ interface DummyProduct {
   description: string;
   category: string;
   price: number;
-  discountPercentage: number;
-  rating: number;
-  stock: number;
+  discountPercentage?: number;
+  rating?: number;
+  stock?: number;
   tags?: string[];
   brand?: string;
   sku?: string;
   weight?: number;
-  dimensions?: { width: number; height: number; depth: number };
+  dimensions?: {
+    width: number;
+    height: number;
+    depth: number;
+  };
   warrantyInformation?: string;
   shippingInformation?: string;
   availabilityStatus?: string;
@@ -30,26 +44,50 @@ interface DummyProduct {
   thumbnail: string;
 }
 
+interface DummyProductsResponse {
+  products: DummyProduct[];
+  total: number;
+  skip: number;
+  limit: number;
+}
+
 async function main() {
   const existingCount = await prisma.product.count();
 
   if (existingCount > 0) {
     console.log(
-      `Database already has ${existingCount} product(s) — skipping seed. ` +
-        "Delete existing products first if you want to reseed."
+      `Database already has ${existingCount} product(s) — skipping seed.`
+    );
+    console.log(
+      "Delete existing products first if you want to reseed."
     );
     return;
   }
 
   console.log("Fetching starter catalog from dummyjson.com...");
 
-  const response = await fetch("https://dummyjson.com/products?limit=100");
+  const response = await fetch(
+    "https://dummyjson.com/products?limit=100",
+    {
+      signal: AbortSignal.timeout(30000),
+      headers: {
+        Accept: "application/json",
+      },
+    }
+  );
 
   if (!response.ok) {
-    throw new Error("Failed to fetch dummyjson products for seeding");
+    throw new Error(
+      `Failed to fetch DummyJSON products. Status: ${response.status}`
+    );
   }
 
-  const data: { products: DummyProduct[] } = await response.json();
+  const data =
+    (await response.json()) as DummyProductsResponse;
+
+  if (!Array.isArray(data.products) || data.products.length === 0) {
+    throw new Error("DummyJSON returned no products");
+  }
 
   console.log(`Inserting ${data.products.length} products...`);
 
@@ -64,15 +102,17 @@ async function main() {
         rating: item.rating ?? 0,
         stock: item.stock ?? 0,
         tags: item.tags ?? [],
-        brand: item.brand,
-        sku: item.sku,
-        weight: item.weight,
-        dimensions: item.dimensions,
-        warrantyInformation: item.warrantyInformation,
-        shippingInformation: item.shippingInformation,
-        availabilityStatus: item.availabilityStatus ?? "In Stock",
-        returnPolicy: item.returnPolicy,
-        minimumOrderQuantity: item.minimumOrderQuantity ?? 1,
+        brand: item.brand ?? null,
+        sku: item.sku ?? null,
+        weight: item.weight ?? null,
+        dimensions: item.dimensions ?? null,
+        warrantyInformation: item.warrantyInformation ?? null,
+        shippingInformation: item.shippingInformation ?? null,
+        availabilityStatus:
+          item.availabilityStatus ?? "In Stock",
+        returnPolicy: item.returnPolicy ?? null,
+        minimumOrderQuantity:
+          item.minimumOrderQuantity ?? 1,
         images: item.images,
         thumbnail: item.thumbnail,
       },
@@ -84,7 +124,7 @@ async function main() {
 
 main()
   .catch((error) => {
-    console.error(error);
+    console.error("Seed failed:", error);
     process.exitCode = 1;
   })
   .finally(async () => {
