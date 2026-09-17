@@ -9,6 +9,7 @@ import {
   Menu,
   X,
   Heart,
+  ShieldCheck,
 } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import { useAuth } from "@/context/AuthContext";
@@ -75,6 +76,16 @@ export default function Header() {
           >
             {isAuthenticated ? user?.name : "Login"}
           </Link>
+
+          {user?.role === "admin" && (
+            <Link
+              href="/admin"
+              className="flex items-center gap-1.5 rounded-lg bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-zinc-800"
+            >
+              <ShieldCheck size={15} />
+              Admin
+            </Link>
+          )}
         </nav>
 
         {/* Desktop Search */}

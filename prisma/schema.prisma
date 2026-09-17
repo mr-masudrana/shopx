@@ -1,6 +1,12 @@
 generator client {
-  provider      = "prisma-client-js"
-  binaryTargets = ["native", "rhel-openssl-3.0.x"]
+  provider   = "prisma-client-js"
+  // No native Rust query engine binary — this is what was breaking on
+  // Termux/Android (it kept downloading an x86_64 binary that can't
+  // load on your phone's ARM64 architecture, no matter which
+  // binaryTargets we tried). This mode ("Prisma ORM without Rust
+  // engines", GA since v6.15) uses the @prisma/adapter-pg driver
+  // adapter instead, so there's no native binary to mismatch at all.
+  engineType = "client"
 }
 
 datasource db {
@@ -15,6 +21,7 @@ model User {
   email        String   @unique
   passwordHash String
   phone        String?
+  role         String   @default("customer") // "customer" | "admin"
   createdAt    DateTime @default(now())
 
   orders    Order[]

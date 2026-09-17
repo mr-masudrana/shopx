@@ -58,9 +58,27 @@ export async function PATCH(
     );
   }
 
-  const updated = await prisma.order.update({
-    where: { id },
-    data: { status: "cancelled" },
+  const items = Array.isArray(order.items)
+    ? (order.items as Array<{ product: { id: number }; quantity: number }>)
+    : [];
+
+  const updated = await prisma.$transaction(async (tx) => {
+    // Give the stock back now that the order is cancelled.
+    for (const item of items) {
+      if (typeof item?.product?.id === "number" && item.quantity > 0) {
+        // updateMany (not update) so a since-deleted product doesn't
+        // throw and roll back the cancellation.
+        await tx.product.updateMany({
+          where: { id: item.product.id },
+          data: { stock: { increment: item.quantity } },
+        });
+      }
+    }
+
+    return tx.order.update({
+      where: { id },
+      data: { status: "cancelled" },
+    });
   });
 
   return NextResponse.json({ order: updated });

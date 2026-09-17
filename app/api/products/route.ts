@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import { prisma } from "@/lib/prisma";
 import { getAllProducts } from "@/lib/products";
-import { getSessionUser } from "@/lib/session";
+import { getAdminUser } from "@/lib/session";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -36,13 +36,12 @@ const createProductSchema = z.object({
   thumbnail: z.string().url().optional(),
 });
 
-// Any logged-in user can add a product for now — this project has no
-// separate admin role yet. Add one later if you need to restrict this.
+// Only admins can add products.
 export async function POST(request: Request) {
-  const user = await getSessionUser();
+  const admin = await getAdminUser();
 
-  if (!user) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  if (!admin) {
+    return NextResponse.json({ error: "Admin access required" }, { status: 403 });
   }
 
   const body = await request.json().catch(() => null);

@@ -43,13 +43,20 @@ export async function POST(request: Request) {
 
   const passwordHash = await hashPassword(password);
 
+  const adminEmails = (process.env.ADMIN_EMAILS ?? "")
+    .split(",")
+    .map((item) => item.trim().toLowerCase())
+    .filter(Boolean);
+  const role = adminEmails.includes(normalizedEmail) ? "admin" : "customer";
+
   const user = await prisma.user.create({
     data: {
       name,
       email: normalizedEmail,
       passwordHash,
+      role,
     },
-    select: { id: true, name: true, email: true, phone: true, createdAt: true },
+    select: { id: true, name: true, email: true, phone: true, role: true, createdAt: true },
   });
 
   const token = await createSessionToken({ userId: user.id, email: user.email });

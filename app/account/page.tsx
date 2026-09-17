@@ -106,11 +106,13 @@ export default function AccountPage() {
               label="Settings"
             />
 
-            <AccountNavItem
-              href="/account/products/new"
-              icon={<PackagePlus size={18} />}
-              label="Add Product"
-            />
+            {user?.role === "admin" && (
+              <AccountNavItem
+                href="/admin"
+                icon={<PackagePlus size={18} />}
+                label="Admin Dashboard"
+              />
+            )}
           </nav>
         </aside>
 
@@ -189,7 +191,7 @@ export default function AccountPage() {
               <ProfileItem
                 icon={<ShieldCheck size={18} />}
                 label="Account Type"
-                value="Customer"
+                value={user?.role === "admin" ? "Admin" : "Customer"}
               />
             </div>
           </div>

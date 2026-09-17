@@ -11,6 +11,7 @@ CREATE TABLE "User" (
   "email" TEXT NOT NULL,
   "passwordHash" TEXT NOT NULL,
   "phone" TEXT,
+  "role" TEXT NOT NULL DEFAULT 'customer',
   "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT "User_pkey" PRIMARY KEY ("id")
 );

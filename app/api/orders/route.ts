@@ -16,11 +16,14 @@ const shippingSchema = z.object({
   country: z.string().min(1),
 });
 
+// NOTE: we only trust `product.id` and `quantity` from the client.
+// Price is never taken from the request body — it's always re-read
+// from the database below, so a tampered request can't change what
+// gets charged.
 const cartItemSchema = z.object({
   product: z
     .object({
       id: z.number(),
-      price: z.number().nonnegative(),
     })
     .passthrough(),
   quantity: z.number().int().positive(),
@@ -36,9 +39,19 @@ const FREE_SHIPPING_THRESHOLD = 100;
 const SHIPPING_COST = 9.99;
 const TAX_RATE = 0.05;
 
-function calculateTotals(items: z.infer<typeof cartItemSchema>[]) {
+class OrderError extends Error {}
+
+interface PricedItem {
+  id: number;
+  title: string;
+  thumbnail: string;
+  price: number;
+  quantity: number;
+}
+
+function calculateTotals(items: PricedItem[]) {
   const subtotal = items.reduce(
-    (sum, item) => sum + item.product.price * item.quantity,
+    (sum, item) => sum + item.price * item.quantity,
     0
   );
 
@@ -93,18 +106,17 @@ export async function POST(request: Request) {
   }
 
   const data = parsed.data;
-  const { subtotal, shippingCost, tax, total } = calculateTotals(
-    data.items
-  );
 
-  // Convert Zod data into Prisma-compatible JSON values.
-  const orderItems = data.items.map((item) => ({
-    product: {
-      id: item.product.id,
-      price: item.product.price,
-    },
-    quantity: item.quantity,
-  })) as Prisma.InputJsonValue;
+  // Merge duplicate product ids (e.g. same item added twice) so stock
+  // is checked/decremented once per product with the combined quantity.
+  const quantityByProductId = new Map<number, number>();
+  for (const item of data.items) {
+    quantityByProductId.set(
+      item.product.id,
+      (quantityByProductId.get(item.product.id) ?? 0) + item.quantity
+    );
+  }
+  const productIds = Array.from(quantityByProductId.keys());
 
   const shippingDetails = {
     firstName: data.shipping.firstName,
@@ -117,19 +129,90 @@ export async function POST(request: Request) {
     country: data.shipping.country,
   } as Prisma.InputJsonValue;
 
-  const order = await prisma.order.create({
-    data: {
-      userId: user.id,
-      items: orderItems,
-      shipping: shippingDetails,
-      paymentMethod: data.paymentMethod,
-      subtotal,
-      shippingCost,
-      tax,
-      total,
-      status: "placed",
-    },
-  });
+  try {
+    const order = await prisma.$transaction(async (tx) => {
+      const products = await tx.product.findMany({
+        where: { id: { in: productIds } },
+      });
 
-  return NextResponse.json({ order }, { status: 201 });
+      if (products.length !== productIds.length) {
+        throw new OrderError(
+          "One or more items in your cart are no longer available."
+        );
+      }
+
+      const pricedItems: PricedItem[] = products.map((product) => {
+        const quantity = quantityByProductId.get(product.id)!;
+
+        if (product.stock < quantity) {
+          throw new OrderError(
+            `Only ${product.stock} left in stock for "${product.title}".`
+          );
+        }
+
+        return {
+          id: product.id,
+          title: product.title,
+          thumbnail: product.thumbnail,
+          price: product.price,
+          quantity,
+        };
+      });
+
+      const { subtotal, shippingCost, tax, total } =
+        calculateTotals(pricedItems);
+
+      const orderItems = pricedItems.map((item) => ({
+        product: {
+          id: item.id,
+          title: item.title,
+          thumbnail: item.thumbnail,
+          price: item.price,
+        },
+        quantity: item.quantity,
+      })) as Prisma.InputJsonValue;
+
+      // Decrement stock atomically, guarded by `stock >= quantity` so a
+      // concurrent order can't push it negative. If nothing matched,
+      // someone else just took the remaining stock — bail out.
+      for (const item of pricedItems) {
+        const result = await tx.product.updateMany({
+          where: { id: item.id, stock: { gte: item.quantity } },
+          data: { stock: { decrement: item.quantity } },
+        });
+
+        if (result.count === 0) {
+          throw new OrderError(
+            `"${item.title}" just sold out. Please update your cart.`
+          );
+        }
+      }
+
+      return tx.order.create({
+        data: {
+          userId: user.id,
+          items: orderItems,
+          shipping: shippingDetails,
+          paymentMethod: data.paymentMethod,
+          subtotal,
+          shippingCost,
+          tax,
+          total,
+          status: "placed",
+        },
+      });
+    });
+
+    return NextResponse.json({ order }, { status: 201 });
+  } catch (error) {
+    if (error instanceof OrderError) {
+      return NextResponse.json({ error: error.message }, { status: 409 });
+    }
+
+    console.error("Failed to create order:", error);
+    return NextResponse.json(
+      { error: "Something went wrong while placing your order." },
+      { status: 500 }
+    );
+  }
 }
